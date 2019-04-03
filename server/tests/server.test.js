@@ -101,3 +101,41 @@ describe("Post todo", ()=>{
     });
   });
 });
+describe("DELETE /todos/:id", () => {
+  it("Should delete a todo", (done) => {
+    var hexId = todos[0]._id.toHexString();
+    request(app)
+    .delete(`/todos/${hexId}`)
+    .expect(200)
+    .expect((res)=>{
+      expect(res.body.todo._id).toBe(hexId)
+    })
+    .end((err,res) => {
+      if(err){
+        return done(err);
+      }
+
+      var todo = Todo.findById(hexId).then((res)=>{
+        expect(res).toBeFalsy();
+        done();
+      },(e) => {
+        return done(err);
+      });
+    });
+  });
+
+  it("Should give 404 if todo is not deleted", (done) => {
+      var hexId = new ObjectID().toHexString();
+        request(app)
+          .delete(`/todos/${hexId}`)
+          .expect(404)
+          .end(done);
+      });
+
+  it("Should give 404 when invalid address in passed", (done) => {
+        request(app)
+        .delete(`/todos/123`)
+        .expect(404)
+        .end(done);
+    });
+  });
