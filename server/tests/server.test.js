@@ -243,3 +243,47 @@ describe("DELETE /todos/:id", function(){
         .end(done);
     });
   });
+
+  describe("POST /users/login", () => {
+    it("Should login if credentials are correct", (done) => {
+      request(app)
+        .post("/users/login")
+        .send({
+          email: users[1].email,
+          password: users[1].password
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.headers['x-auth']).toBeTruthy();
+        })
+        .end((err,res) => {
+          if(err){
+            done(err);
+          }
+
+          User.findById(users[1]._id).then((user) => {
+            expect(user.tokens[0]).toMatchObject({
+              access: "auth",
+              token: res.header['x-auth']
+            });
+            done();
+          }).catch((e) => {
+            console.log(e);
+          });
+        });
+    });
+
+    it("Should not log in if credentials are incorrect", (done) => {
+        request(app)
+          .post("/users/login")
+          .send({
+            email: users[1].email,
+            password: "random"
+          })
+          .expect(400)
+          .expect((res) => {
+            expect(res.headers['x-auth']).toBeFalsy();
+          })
+          .end(done);
+    });
+  });
