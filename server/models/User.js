@@ -73,7 +73,7 @@ UserSchema.statics.findByToken = function(token){
   try{
     decoded = jwt.verify(token, 'abc123');
   }catch(e){
-    return Promise.reject('Invalid Salt');
+    return Promise.reject();
   }
 
   return User.findOne({
@@ -83,6 +83,25 @@ UserSchema.statics.findByToken = function(token){
   });
 }
 
+UserSchema.statics.findByCredentials = function(email, password){
+  var User = this;
+
+  return User.findOne({"email": email}).then((fetchedUser) => {
+    if(!fetchedUser){
+      return Promise.reject();
+    }
+
+    return new Promise((resolve, reject)=> {
+      bcrypt.compare(password, fetchedUser.password, (err,user) => {
+        if(user){
+          resolve(fetchedUser);
+        }else {
+          reject("Incorrect password!");
+        }
+      });
+    });
+  });
+}
 
 var User = mongoose.model('User',UserSchema);
 

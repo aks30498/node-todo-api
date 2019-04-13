@@ -3,27 +3,16 @@ const request = require('supertest');
 const {ObjectID} = require('mongodb');
 const {app} = require('../server');
 const {Todo} = require('../models/Todo');
+const {User} = require('../models/User');
+const {todos, populateTodos, users, populateUsers} = require("./seed/seed");
 
-const todos  = [{
-  _id: new ObjectID(),
-  text: "First test",
-  completed: true,
-  completedAt: 123456
-}, {
-  _id: new ObjectID(),
-  text: "Second test"
-}]
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
-
-
-beforeEach((done) => {
-  Todo.remove({}).then(() => {
-    return Todo.insertMany(todos)
-  }).then(() => done());
-});
-
-describe("Post todo", ()=>{
-  it("should create new todos", (done)=>{
+describe("Post todo", function(){
+  this.timeout(50000);
+  it("should create new todos", function(done){
+    this.timeout(50000);
     var text = "Todo test";
 
     request(app)
@@ -45,7 +34,6 @@ describe("Post todo", ()=>{
         }).catch((e) => done(e));
       });
   });
-
   it('should not create a todo with invalid data', (done) => {
     request(app)
       .post("/todos")
@@ -63,7 +51,9 @@ describe("Post todo", ()=>{
       });
   });
 
-  describe("GET /todos", ()=> {
+  describe("GET /todos", function(){
+    this.timeout(50000);
+
     it("Should get all the todos", (done)=> {
       request(app)
         .get("/todos")
@@ -75,7 +65,9 @@ describe("Post todo", ()=>{
     });
   });
 
-  describe("GET /todos/id", ()=> {
+  describe("GET /todos/id", function(){
+    this.timeout(50000);
+
     it("Should get one document by id", (done)=> {
       request(app)
         .get(`/todos/${todos[0]._id.toHexString()}`)
@@ -103,7 +95,9 @@ describe("Post todo", ()=>{
     });
   });
 });
-describe("DELETE /todos/:id", () => {
+describe("DELETE /todos/:id", function(){
+  this.timeout(50000);
+
   it("Should delete a todo", (done) => {
     var hexId = todos[0]._id.toHexString();
     request(app)
@@ -142,7 +136,9 @@ describe("DELETE /todos/:id", () => {
     });
   });
 
-  describe('PATCH /todos/:id', () => {
+  describe('PATCH /todos/:id', function(){
+    this.timeout(50000);
+
     it("Should update a todo ",(done)=> {
       var id = todos[0]._id.toHexString();
       var text = "New Text";
@@ -173,6 +169,77 @@ describe("DELETE /todos/:id", () => {
           expect(res.body.todo.completed).toBe(false);
           expect(res.body.todo.completedAt).toBeFalsy();
         })
+        .end(done);
+    });
+  });
+
+  describe("GET/ users/me", function(){
+    this.timeout(5000);
+    it("Gives user data if token given", (done) => {
+      request(app)
+        .get("/users/me")
+        .set("x-auth",users[0].tokens[0].token)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body._id).toBe(users[0]._id.toHexString());
+          expect(res.body.email).toBe(users[0].email);
+        })
+        .end(done);
+    });
+    it("Should give 401 if token can't be authencated", (done) => {
+      request(app)
+        .get("/users/me")
+        .expect(401)
+        .expect((res) => {
+          expect(res.body).toEqual({});
+        })
+        .end(done);
+    });
+  });
+
+  describe("POST users/", function(){
+    this.timeout(5000);
+
+    it("Should sign up a new user", (done) => {
+      var email = "ex@ex.com";
+      var password = "123abc";
+      request(app)
+        .post("/users")
+        .send({email, password})
+        .expect(200)
+        .expect((res) => {
+          expect(res.headers['x-auth']).toBeTruthy();
+          expect(res.body.email).toBe(email);
+        })
+        .end((err) => {
+          if(err){
+            done(err);
+          }
+          User.findOne({email}).then((user) => {
+            expect(user).toBeTruthy();
+            expect(user.password).not.toBe(password);
+          })
+          done();
+        });
+    });
+
+    it("Should show error if invalid details are given", (done) => {
+      var email = "ex@ex.com";
+      var password = "3abc";
+      request(app)
+        .post("/users")
+        .send({email, password})
+        .expect(400)
+        .end(done);
+    });
+
+    it("Should show error if email is already in use", (done) => {
+      var email = users[0].email;
+      var password = "123abc";
+      request(app)
+        .post("/users")
+        .send({email, password})
+        .expect(400)
         .end(done);
     });
   });
